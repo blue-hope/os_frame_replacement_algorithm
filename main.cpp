@@ -752,9 +752,6 @@ int main(int argc, const char * argv[]) {
                             }
                         }
                         page_table[pid].change_valid_frame(alloc_id);
-                        if(command_access_cnt % time_interval == time_interval - 1){
-                            phy_mem.shift_reference_byte(process_num);
-                        }
                     } else if(algorithm_type == 3){
                         int* replaced_alloc_id = phy_mem.pra_LFU(demand_pg_binary, alloc_id);
                         for(int j = 0; j < process_num; j++){
@@ -776,10 +773,15 @@ int main(int argc, const char * argv[]) {
                         }
                         page_table[pid].change_valid_frame(alloc_id);
                     } else if(algorithm_type == 5){
-                    }
+                    }                    
                 }
                 if(algorithm_type != 5){
                     page_fault += 1;
+                }
+            }
+            if(algorithm_type == 2){
+                if(command_access_cnt % time_interval ==  time_interval - 1){
+                    phy_mem.shift_reference_byte(process_num);
                 }
             }
         }
