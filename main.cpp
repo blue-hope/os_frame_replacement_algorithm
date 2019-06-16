@@ -8,9 +8,9 @@
 
 #include <iostream>
 #include <sys/time.h>
-#include <string.h>
-#include <stdio.h>
-#include <math.h>
+#include <cstring>
+#include <cstdio>
+#include <cmath>
 using namespace std;
 
 #define reference_byte_size 8
@@ -155,7 +155,6 @@ bool PhysicalMemory::is_replace_needed(int arg_demand_pg_binary){
 int PhysicalMemory::is_best_fit(int arg_demand_pg_binary, int arg_alloc_index){
     int fit = 1;
     while(arg_demand_pg_binary * pow(2, fit - 1) < phy_mem_size){
-        
         int operand_xor = arg_demand_pg_binary * pow(2, fit - 1);
         int operand_and = phy_mem_size - operand_xor;
         int start_index = (arg_alloc_index ^ operand_xor) & operand_and;
@@ -174,20 +173,7 @@ bool PhysicalMemory::phy_mem_alloc(int arg_demand_pg_binary, int arg_alloc_id){
     int alloc_index;
     int tmp_alloc_index;
     bool phy_mem_alloc_avail = false;
-
-    // for(int i = 0; i < phy_mem_size / arg_demand_pg_binary; i++){
-    //     if(phy_mem[i * arg_demand_pg_binary] == -1){
-    //         alloc_index = i * arg_demand_pg_binary;
-    //         break;
-    //     }
-    // }
-    // for(int i = alloc_index; i < alloc_index + arg_demand_pg_binary; i++){
-    //     if(phy_mem[i] != -1){
-    //         phy_mem_alloc_avail = false;
-    //     }
-    // }
     int fit = INF;
-    //new
     for(int i = 0; i < phy_mem_size / arg_demand_pg_binary; i++){
         if(phy_mem[i * arg_demand_pg_binary] == -1){
             tmp_alloc_index = i * arg_demand_pg_binary;
