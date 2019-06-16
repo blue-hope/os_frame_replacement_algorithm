@@ -40,17 +40,19 @@ class PhysicalMemory{
         bool is_hit(int arg_alloc_id);
         string formatting_procedure(void);
         bool is_replace_needed(int arg_demand_pg_binary);
+        int is_best_fit(int arg_demand_pg_binary, int arg_alloc_index);
         bool phy_mem_alloc(int arg_demand_pg_binary, int arg_alloc_id);
         int* pra_FIFO(int arg_demand_pg_binary, int arg_alloc_id);
         int* pra_LRU(int arg_demand_pg_binary, int arg_alloc_id);
         void shift_reference_byte(int arg_process_num);
+        void free_reference_byte(int arg_alloc_id);
         int calculate_reference_byte(int arg_alloc_id);
         int* pra_Sampled_LRU(int arg_demand_pg_binary, int arg_alloc_id);
         int* pra_LFU(int arg_demand_pg_binary, int arg_alloc_id);
         int* pra_MFU(int arg_demand_pg_binary, int arg_alloc_id);
         void alloc_access_sequence(int arg_pid, int arg_func, int arg_alloc_id, int arg_demand_pg_binary);
         int* get_argu(int arg_i);
-        int* pra_Optimal(int arg_i);
+        int* pra_Optimal(int arg_i, int arg_command_num);
 }; 
 class PageTable{
     private:
@@ -121,6 +123,10 @@ bool PhysicalMemory::is_hit(int arg_alloc_id){
         if(phy_mem[i] == arg_alloc_id){//hit
             arr_for_LRU[i] = 0;
             is_hit = true;
+        } else {
+            if(arr_for_LRU[i] != -1){
+                arr_for_LRU[i]++;
+            }
         }
     }
     arr_for_LFU[arg_alloc_id - 1]++;
@@ -146,19 +152,63 @@ string PhysicalMemory::formatting_procedure(void){
 bool PhysicalMemory::is_replace_needed(int arg_demand_pg_binary){
     return phy_mem_available < arg_demand_pg_binary;
 }
-bool PhysicalMemory::phy_mem_alloc(int arg_demand_pg_binary, int arg_alloc_id){
-    int alloc_index;
-    bool phy_mem_alloc_avail = true;
-
-    for(int i = 0; i < phy_mem_size / arg_demand_pg_binary; i++){
-        if(phy_mem[i * arg_demand_pg_binary] == -1){
-            alloc_index = i * arg_demand_pg_binary;
-            break;
+int PhysicalMemory::is_best_fit(int arg_demand_pg_binary, int arg_alloc_index){
+    int fit = 1;
+    while(arg_demand_pg_binary * pow(2, fit - 1) < phy_mem_size){
+        
+        int operand_xor = arg_demand_pg_binary * pow(2, fit - 1);
+        int operand_and = phy_mem_size - operand_xor;
+        int start_index = (arg_alloc_index ^ operand_xor) & operand_and;
+        int end_index = start_index + arg_demand_pg_binary * pow(2, fit - 1);
+        for(int i = start_index; i < end_index; i++){
+            if(phy_mem[i] != -1){
+                return fit;
+            } else {
+                fit++;
+            }
         }
     }
-    for(int i = alloc_index; i < alloc_index + arg_demand_pg_binary; i++){
-        if(phy_mem[i] != -1){
-            phy_mem_alloc_avail = false;
+    return fit;
+}
+bool PhysicalMemory::phy_mem_alloc(int arg_demand_pg_binary, int arg_alloc_id){
+    int alloc_index;
+    int tmp_alloc_index;
+    bool phy_mem_alloc_avail = false;
+
+    // for(int i = 0; i < phy_mem_size / arg_demand_pg_binary; i++){
+    //     if(phy_mem[i * arg_demand_pg_binary] == -1){
+    //         alloc_index = i * arg_demand_pg_binary;
+    //         break;
+    //     }
+    // }
+    // for(int i = alloc_index; i < alloc_index + arg_demand_pg_binary; i++){
+    //     if(phy_mem[i] != -1){
+    //         phy_mem_alloc_avail = false;
+    //     }
+    // }
+    int fit = INF;
+    //new
+    for(int i = 0; i < phy_mem_size / arg_demand_pg_binary; i++){
+        if(phy_mem[i * arg_demand_pg_binary] == -1){
+            tmp_alloc_index = i * arg_demand_pg_binary;
+            bool full = false;
+            for(int i = tmp_alloc_index; i < tmp_alloc_index + arg_demand_pg_binary; i++){
+                if(phy_mem[i] != -1){
+                    full = true;
+                    break;
+                }
+            }
+            if(!full){
+                phy_mem_alloc_avail = true;
+                int tmp_fit = this->is_best_fit(arg_demand_pg_binary, tmp_alloc_index);
+                if(tmp_fit < fit){
+                    fit = tmp_fit;
+                    alloc_index = tmp_alloc_index;
+                } 
+                else {
+                    continue;
+                }
+            }
         }
     }
     if(!phy_mem_alloc_avail){
@@ -270,6 +320,11 @@ void PhysicalMemory::shift_reference_byte(int arg_process_num){
         arr_for_Sampled_LRU[i][0] = 0;
     }
 }
+void PhysicalMemory::free_reference_byte(int arg_alloc_id){
+    for(int i = 0; i < reference_byte_size + 1; i++){
+        arr_for_Sampled_LRU[arg_alloc_id - 1][i] = 0;
+    }
+}
 int PhysicalMemory::calculate_reference_byte(int arg_alloc_id){
     int sum = 0;
     for(int i = 1; i < reference_byte_size + 1; i++){
@@ -334,6 +389,7 @@ int* PhysicalMemory::pra_Sampled_LRU(int arg_demand_pg_binary, int arg_alloc_id)
                 phy_mem_available++;
             }
         }
+        free_reference_byte(fewest_alloc_id);
         if(this->phy_mem_alloc(arg_demand_pg_binary, arg_alloc_id)){
             //frame alloc
             break;
@@ -399,6 +455,7 @@ int* PhysicalMemory::pra_LFU(int arg_demand_pg_binary, int arg_alloc_id){
                 phy_mem_available++;
             }
         }
+        arr_for_LFU[fewest_alloc_id - 1] = 0;
         if(this->phy_mem_alloc(arg_demand_pg_binary, arg_alloc_id)){
             //frame alloc
             break;
@@ -464,6 +521,7 @@ int* PhysicalMemory::pra_MFU(int arg_demand_pg_binary, int arg_alloc_id){
                 phy_mem_available++;
             }
         }
+        arr_for_MFU[frequent_alloc_id - 1] = 0;
         if(this->phy_mem_alloc(arg_demand_pg_binary, arg_alloc_id)){
             //frame alloc
             break;
@@ -493,7 +551,7 @@ int* PhysicalMemory::get_argu(int arg_i){
     argu[3] = arr_for_Optimal_demand_pg[arg_i];
     return argu;
 }
-int* PhysicalMemory::pra_Optimal(int arg_i){
+int* PhysicalMemory::pra_Optimal(int arg_i, int arg_command_num){
     int target_left;
     int target_alloc_id;
     int cnt = 0;
@@ -534,7 +592,7 @@ int* PhysicalMemory::pra_Optimal(int arg_i){
 
         for(int i = 0; i < tmp_cnt; i++){
             int j = arg_i + 1;
-            while(true){
+            while(j < arg_command_num){
                 if(arr_for_Optimal_alloc_id[j] == tmp_phy_mem_assigned[i]){
                     tmp_phy_mem_assigned_left[i] = j - arg_i;
                     break;
@@ -557,7 +615,6 @@ int* PhysicalMemory::pra_Optimal(int arg_i){
                 }
             }
         }
-
         replace_alloc_id[cnt] = target_alloc_id;
         cnt++;
 
@@ -567,7 +624,14 @@ int* PhysicalMemory::pra_Optimal(int arg_i){
                 phy_mem_available++;
             }
         }
-        if(this->phy_mem_alloc(arr_for_Optimal_demand_pg[arg_i], arr_for_Optimal_alloc_id[arg_i])){
+        int demand_pg_binary = 1;
+        for(int j = 0; j < 5; j++){
+            if(pow(2, j) < arr_for_Optimal_demand_pg[arg_i] && arr_for_Optimal_demand_pg[arg_i] <= pow(2, j+1)){
+                demand_pg_binary = pow(2, j+1);
+                break;
+            }
+        }
+        if(this->phy_mem_alloc(demand_pg_binary, arr_for_Optimal_alloc_id[arg_i])){
             //frame alloc
             break;
         }
@@ -663,6 +727,7 @@ int main(int argc, const char * argv[]) {
     getline(cin, str);
     int command_num = stoi(str);
     int command_access_cnt = 0;
+    int command_cnt = 0;
 
     //valiable init
     PhysicalMemory phy_mem(process_num, command_num);
@@ -711,7 +776,7 @@ int main(int argc, const char * argv[]) {
             }
 
             if(algorithm_type == 5){
-                phy_mem.alloc_access_sequence(pid, func, alloc_id, demand_pg_binary);
+                phy_mem.alloc_access_sequence(pid, func, alloc_id, demand_pg);
             }
             
             if(!phy_mem.is_hit(alloc_id)){
@@ -780,7 +845,7 @@ int main(int argc, const char * argv[]) {
                 }
             }
             if(algorithm_type == 2){
-                if(command_access_cnt % time_interval ==  time_interval - 1){
+                if(command_cnt % time_interval ==  time_interval - 1){
                     phy_mem.shift_reference_byte(process_num);
                 }
             }
@@ -823,6 +888,7 @@ int main(int argc, const char * argv[]) {
         if(func == 0){
             command_access_cnt++;
         }
+        command_cnt++;
     }
 
     if(algorithm_type == 5){//optimal
@@ -831,12 +897,19 @@ int main(int argc, const char * argv[]) {
         }
         for(int i = 0; i < command_access_cnt; i++){
             int* argu = phy_mem.get_argu(i);
+            int demand_pg_binary = 1;
+            for(int j = 0; j < 5; j++){
+                if(pow(2, j) < argu[3] && argu[3] <= pow(2, j+1)){
+                    demand_pg_binary = pow(2, j+1);
+                    break;
+                }
+            }
             if(!phy_mem.is_hit(argu[2])){
-                if(!phy_mem.is_replace_needed(argu[3])){//no replace
-                    phy_mem.phy_mem_alloc(argu[3], argu[2]);
+                if(!phy_mem.is_replace_needed(demand_pg_binary)){//no replace
+                    phy_mem.phy_mem_alloc(demand_pg_binary, argu[2]);
                     page_table[argu[0]].change_valid_frame(argu[2]);
                 } else {//need replace
-                    int* replaced_alloc_id = phy_mem.pra_Optimal(i);
+                    int* replaced_alloc_id = phy_mem.pra_Optimal(i, command_access_cnt);
                     for(int j = 0; j < process_num; j++){
                         for(int k = 0; k < phy_mem_size; k++){
                             if(replaced_alloc_id[k] != -1){
