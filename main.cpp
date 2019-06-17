@@ -37,22 +37,22 @@ class PhysicalMemory{
     public:
         PhysicalMemory(int arg_process_num, int arg_command_num);
         ~PhysicalMemory();
-        bool is_hit(int arg_alloc_id);
-        string formatting_procedure(void);
-        bool is_replace_needed(int arg_demand_pg_binary);
-        int is_best_fit(int arg_demand_pg_binary, int arg_alloc_index);
-        bool phy_mem_alloc(int arg_demand_pg_binary, int arg_alloc_id);
-        int* pra_FIFO(int arg_demand_pg_binary, int arg_alloc_id);
-        int* pra_LRU(int arg_demand_pg_binary, int arg_alloc_id);
-        void shift_reference_byte(int arg_process_num);
-        void free_reference_byte(int arg_alloc_id);
-        int calculate_reference_byte(int arg_alloc_id);
-        int* pra_Sampled_LRU(int arg_demand_pg_binary, int arg_alloc_id);
-        int* pra_LFU(int arg_demand_pg_binary, int arg_alloc_id);
-        int* pra_MFU(int arg_demand_pg_binary, int arg_alloc_id);
-        void alloc_access_sequence(int arg_pid, int arg_func, int arg_alloc_id, int arg_demand_pg_binary);
-        int* get_argu(int arg_i);
-        int* pra_Optimal(int arg_i, int arg_command_num);
+        bool is_hit(int arg_alloc_id);//hit check method
+        string formatting_procedure(void);//print formatting
+        bool is_replace_needed(int arg_demand_pg_binary);//check replace needed
+        int is_best_fit(int arg_demand_pg_binary, int arg_alloc_index);//check fit in buddy system
+        bool phy_mem_alloc(int arg_demand_pg_binary, int arg_alloc_id);//allocate frame to physical memory
+        int* pra_FIFO(int arg_demand_pg_binary, int arg_alloc_id);//FIFO algorithm
+        int* pra_LRU(int arg_demand_pg_binary, int arg_alloc_id);//LRU algorithm
+        void shift_reference_byte(int arg_process_num);//Sampled LRU shift process
+        void free_reference_byte(int arg_alloc_id);//Sampled LRU time interval process
+        int calculate_reference_byte(int arg_alloc_id);//Sampled LRU byte calculating process
+        int* pra_Sampled_LRU(int arg_demand_pg_binary, int arg_alloc_id);//Sampled LRU algorithm
+        int* pra_LFU(int arg_demand_pg_binary, int arg_alloc_id);//LFU algorithm
+        int* pra_MFU(int arg_demand_pg_binary, int arg_alloc_id);//MFU algorithm
+        void alloc_access_sequence(int arg_pid, int arg_func, int arg_alloc_id, int arg_demand_pg_binary);//Optimal sequence check process
+        int* get_argu(int arg_i);//Optimal arguments return process
+        int* pra_Optimal(int arg_i, int arg_command_num);//Optimal algorithm
 }; 
 class PageTable{
     private:
@@ -65,10 +65,10 @@ class PageTable{
     public:
         PageTable();
         ~PageTable();
-        string* formatting_procedure(void);
-        bool is_valid_alloc_id_in_table(int arg_index, int arg_alloc_id);
-        void page_table_alloc(int arg_demand_pg, int arg_alloc_id);
-        void change_valid_frame(int arg_alloc_id);
+        string* formatting_procedure(void);//print formatting
+        bool is_valid_alloc_id_in_table(int arg_index, int arg_alloc_id);//alloc id check process
+        void page_table_alloc(int arg_demand_pg, int arg_alloc_id);//page table allocation process
+        void change_valid_frame(int arg_alloc_id);//valid frame XOR 1
 };
 
 //PhysicalMemory methods---------------------------------------------------------------------------------------------------------------------------------------
@@ -117,7 +117,7 @@ PhysicalMemory::~PhysicalMemory(){
     delete[] arr_for_Optimal_alloc_id;
     delete[] arr_for_Optimal_demand_pg;
 }
-bool PhysicalMemory::is_hit(int arg_alloc_id){
+bool PhysicalMemory::is_hit(int arg_alloc_id){//hit check method
     bool is_hit = false;
     for(int i = 0; i < phy_mem_size; i++){
         if(phy_mem[i] == arg_alloc_id){//hit
@@ -134,7 +134,7 @@ bool PhysicalMemory::is_hit(int arg_alloc_id){
     arr_for_Sampled_LRU[arg_alloc_id - 1][0] = 1;
     return is_hit;
 }
-string PhysicalMemory::formatting_procedure(void){
+string PhysicalMemory::formatting_procedure(void){//print formatting
     phy_mem_str = "|";
     for(int i = 0; i < phy_mem_size; i++){
         if(phy_mem[i] == -1){
@@ -149,10 +149,10 @@ string PhysicalMemory::formatting_procedure(void){
     }
     return phy_mem_str;
 }
-bool PhysicalMemory::is_replace_needed(int arg_demand_pg_binary){
+bool PhysicalMemory::is_replace_needed(int arg_demand_pg_binary){//check replace needed
     return phy_mem_available < arg_demand_pg_binary;
 }
-int PhysicalMemory::is_best_fit(int arg_demand_pg_binary, int arg_alloc_index){
+int PhysicalMemory::is_best_fit(int arg_demand_pg_binary, int arg_alloc_index){//check fit in buddy system
     int fit = 1;
     while(arg_demand_pg_binary * pow(2, fit - 1) < phy_mem_size){
         int operand_xor = arg_demand_pg_binary * pow(2, fit - 1);
@@ -169,7 +169,7 @@ int PhysicalMemory::is_best_fit(int arg_demand_pg_binary, int arg_alloc_index){
     }
     return fit;
 }
-bool PhysicalMemory::phy_mem_alloc(int arg_demand_pg_binary, int arg_alloc_id){
+bool PhysicalMemory::phy_mem_alloc(int arg_demand_pg_binary, int arg_alloc_id){//allocate frame to physical memory
     int alloc_index;
     int tmp_alloc_index;
     bool phy_mem_alloc_avail = false;
@@ -218,7 +218,7 @@ bool PhysicalMemory::phy_mem_alloc(int arg_demand_pg_binary, int arg_alloc_id){
         return true;
     }
 }
-int* PhysicalMemory::pra_FIFO(int arg_demand_pg_binary, int arg_alloc_id){
+int* PhysicalMemory::pra_FIFO(int arg_demand_pg_binary, int arg_alloc_id){//FIFO algorithm
     int oldest;
     int oldest_alloc_id;
     int cnt = 0;
@@ -258,7 +258,7 @@ int* PhysicalMemory::pra_FIFO(int arg_demand_pg_binary, int arg_alloc_id){
 
     return replace_alloc_id;
 }
-int* PhysicalMemory::pra_LRU(int arg_demand_pg_binary, int arg_alloc_id){
+int* PhysicalMemory::pra_LRU(int arg_demand_pg_binary, int arg_alloc_id){//LRU algorithm
     int oldest;
     int oldest_alloc_id; 
     int cnt = 0;
@@ -298,7 +298,7 @@ int* PhysicalMemory::pra_LRU(int arg_demand_pg_binary, int arg_alloc_id){
 
     return replace_alloc_id;
 }
-void PhysicalMemory::shift_reference_byte(int arg_process_num){
+void PhysicalMemory::shift_reference_byte(int arg_process_num){//Sampled LRU shift process
     for(int i = 0; i < arg_process_num * page_table_size; i++){
         for(int j = reference_byte_size; j > 0; j--){
             arr_for_Sampled_LRU[i][j] = arr_for_Sampled_LRU[i][j - 1];
@@ -306,19 +306,19 @@ void PhysicalMemory::shift_reference_byte(int arg_process_num){
         arr_for_Sampled_LRU[i][0] = 0;
     }
 }
-void PhysicalMemory::free_reference_byte(int arg_alloc_id){
+void PhysicalMemory::free_reference_byte(int arg_alloc_id){//Sampled LRU time interval process
     for(int i = 0; i < reference_byte_size + 1; i++){
         arr_for_Sampled_LRU[arg_alloc_id - 1][i] = 0;
     }
 }
-int PhysicalMemory::calculate_reference_byte(int arg_alloc_id){
+int PhysicalMemory::calculate_reference_byte(int arg_alloc_id){//Sampled LRU byte calculating process
     int sum = 0;
     for(int i = 1; i < reference_byte_size + 1; i++){
         sum += pow(2, 8 - i) * arr_for_Sampled_LRU[arg_alloc_id - 1][i];
     }
     return sum;
 }
-int* PhysicalMemory::pra_Sampled_LRU(int arg_demand_pg_binary, int arg_alloc_id){
+int* PhysicalMemory::pra_Sampled_LRU(int arg_demand_pg_binary, int arg_alloc_id){//Sampled LRU algorithm
     int fewest;
     int fewest_alloc_id;
     int cnt = 0;
@@ -384,7 +384,7 @@ int* PhysicalMemory::pra_Sampled_LRU(int arg_demand_pg_binary, int arg_alloc_id)
     delete[] tmp_phy_mem_assigned;
     return replace_alloc_id;
 }
-int* PhysicalMemory::pra_LFU(int arg_demand_pg_binary, int arg_alloc_id){
+int* PhysicalMemory::pra_LFU(int arg_demand_pg_binary, int arg_alloc_id){//LFU algorithm
     int fewest;
     int fewest_alloc_id;
     int cnt = 0;
@@ -450,7 +450,7 @@ int* PhysicalMemory::pra_LFU(int arg_demand_pg_binary, int arg_alloc_id){
     delete[] tmp_phy_mem_assigned;
     return replace_alloc_id;
 }
-int* PhysicalMemory::pra_MFU(int arg_demand_pg_binary, int arg_alloc_id){
+int* PhysicalMemory::pra_MFU(int arg_demand_pg_binary, int arg_alloc_id){//MFU algorithm
     int frequent;
     int frequent_alloc_id;
     int cnt = 0;
@@ -516,7 +516,7 @@ int* PhysicalMemory::pra_MFU(int arg_demand_pg_binary, int arg_alloc_id){
 
     return replace_alloc_id;
 }
-void PhysicalMemory::alloc_access_sequence(int arg_pid, int arg_func, int arg_alloc_id, int arg_demand_pg_binary){
+void PhysicalMemory::alloc_access_sequence(int arg_pid, int arg_func, int arg_alloc_id, int arg_demand_pg_binary){//Optimal sequence check process
     int i = 0;
     while(true){
         if(arr_for_Optimal_alloc_id[i] == -1){
@@ -529,7 +529,7 @@ void PhysicalMemory::alloc_access_sequence(int arg_pid, int arg_func, int arg_al
         i++;
     }
 }
-int* PhysicalMemory::get_argu(int arg_i){
+int* PhysicalMemory::get_argu(int arg_i){//Optimal arguments return process
     int* argu = new int[4];
     argu[0] = arr_for_Optimal_pid[arg_i];
     argu[1] = arr_for_Optimal_func[arg_i];
@@ -537,7 +537,7 @@ int* PhysicalMemory::get_argu(int arg_i){
     argu[3] = arr_for_Optimal_demand_pg[arg_i];
     return argu;
 }
-int* PhysicalMemory::pra_Optimal(int arg_i, int arg_command_num){
+int* PhysicalMemory::pra_Optimal(int arg_i, int arg_command_num){//Optimal algorithm
     int target_left;
     int target_alloc_id;
     int cnt = 0;
@@ -642,7 +642,7 @@ PageTable::~PageTable(){
     delete[] page_table;
     delete[] valid_flag;
 }
-string* PageTable::formatting_procedure(void){
+string* PageTable::formatting_procedure(void){;//print formatting
     page_table_str = "|";
     valid_flag_str = "|";
     
@@ -675,10 +675,10 @@ string* PageTable::formatting_procedure(void){
     str[1] = valid_flag_str;
     return str;
 }
-bool PageTable::is_valid_alloc_id_in_table(int arg_index, int arg_alloc_id){
+bool PageTable::is_valid_alloc_id_in_table(int arg_index, int arg_alloc_id){//alloc id check process
     return page_table[arg_index] == arg_alloc_id;
 }
-void PageTable::page_table_alloc(int arg_demand_pg, int arg_alloc_id){
+void PageTable::page_table_alloc(int arg_demand_pg, int arg_alloc_id){//page table allocation process
     for(int i = page_table_size - page_table_available; i < page_table_size - page_table_available + arg_demand_pg; i++){
         //allocate
         page_table[i] = arg_alloc_id;
@@ -686,7 +686,7 @@ void PageTable::page_table_alloc(int arg_demand_pg, int arg_alloc_id){
     }
     page_table_available -= arg_demand_pg;
 }
-void PageTable::change_valid_frame(int arg_alloc_id){
+void PageTable::change_valid_frame(int arg_alloc_id){//valid frame XOR 1
     for(int i = 0; i < page_table_size; i++){
         if(page_table[i] == arg_alloc_id){
             valid_flag[i] ^= 1;
@@ -760,7 +760,6 @@ int main(int argc, const char * argv[]) {
                     break;
                 }
             }
-
             if(algorithm_type == 5){
                 phy_mem.alloc_access_sequence(pid, func, alloc_id, demand_pg);
             }
